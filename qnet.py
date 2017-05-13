@@ -7,14 +7,15 @@ def lerp(a,b,w):
 class QNet(object):
     def __init__(self, in_dim):
         self.scope = tf.get_variable_scope().name
-        self.inputs = tf.placeholder(shape=(None,in_dim), dtype=tf.float32)
+        shape = (None,) + in_dim
+        self.inputs = tf.placeholder(shape=shape, dtype=tf.uint8)
         self.L = []
 
     def append(self, l):
         self.L.append(l)
 
     def setup(self):
-        X = self.inputs
+        X = tf.contrib.layers.one_hot_encoding(self.inputs, 16) ## VERY SPECIFIC USE
         for l in self.L:
             X = l.apply(X)
         self._Q = X 
@@ -26,7 +27,8 @@ class QNet(object):
         self.Q = tf.reduce_sum(tf.multiply(self._Q, self.actions_one_hot), reduction_indices=1)
         self.Qn = tf.placeholder(shape=[None,1], dtype=tf.float32)
         loss = tf.reduce_sum(tf.square(self.Qn - self.Q))
-        trainer = tf.train.GradientDescentOptimizer(learning_rate=0.0005)
+        #trainer = tf.train.GradientDescentOptimizer(learning_rate=0.0001)
+        trainer = tf.train.AdamOptimizer(learning_rate=1e-4)
 
         self.update = trainer.minimize(loss)
 

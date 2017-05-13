@@ -14,7 +14,7 @@ gamma = .99 #Discount factor.
 num_episodes = 10000 #Total number of episodes to train network for.
 test_episodes = 200 #Total number of episodes to train network for.
 tau = 0.001 #Amount to update target network at each step.
-batch_size = 32 #Size of training batch
+batch_size = 128 #Size of training batch
 
 eps_start = 1 #Starting chance of random action
 eps_end = 0.05 #Final chance of random action
@@ -47,23 +47,22 @@ def train(net, target_net, memory, episodes):
                 a = a[0]
 
             s1,r,d,_ = env.step(a)
-            entry = np.hstack((s0,a,r,s1,d)) # row vec
             memory.add({'s0':s0, 'a':a, 'r':r, 's1':s1, 'd':d})
             if step > pre_train_steps:
                 if eps > eps_end:
                     eps += eps_delta
                 if step % 5 == 0:
                     input_batch = memory.sample(batch_size)
-                    _s0 = input_batch['s0']
+                    _s0 = input_batch['s0'].astype(np.uint8)
                     _a = input_batch['a']
                     _r = input_batch['r']
-                    _s1 = input_batch['s1']
+                    _s1 = input_batch['s1'].astype(np.uint8)
                     _d = input_batch['d']
 
                     # s1 = (4,32), --> (x,32)
                     a_s1 = session.run(net.predict, feed_dict={net.inputs : _s1})
                     q_s1 = session.run(target_net._Q, feed_dict={target_net.inputs : _s1})
-                    q = q_s1[range(batch_size), a_s1].reshape((32,-1))
+                    q = q_s1[range(batch_size), a_s1].reshape((batch_size,-1))
                     target_q = _r + gamma * q * (1 - _d)
                     _ = session.run(net.update, feed_dict = {net.inputs : _s0, net.Qn:target_q, net.actions:_a})
                     session.run(copy_ops)
@@ -119,20 +118,26 @@ def setup():
     state_size = reduce(lambda x,y:x*y, env.observation_space.shape)
 
     # initialize memory
-    memory = MultiMemory(100000)
+    memory = MultiMemory(pre_train_steps)
 
     # get networks
     with tf.variable_scope('net') as scope:
-        net = QNet(16)
-        net.append(DenseLayer((16,64)))
-        net.append(ActivationLayer('tanh'))
-        net.append(DenseLayer((64,4)))
+        net = QNet((4,4))
+        net.append(ConvolutionLayer((3,3,16,16)))
+        net.append(ActivationLayer('relu'))
+        net.append(DenseLayer((256,256)))
+        net.append(ActivationLayer('relu'))
+        net.append(DenseLayer((256,4)))
+        #net.append(ActivationLayer('relu'))
         net.setup()
     with tf.variable_scope('target') as scope:
-        target_net = QNet(16)
-        target_net.append(DenseLayer((16,64)))
-        target_net.append(ActivationLayer('tanh'))
-        target_net.append(DenseLayer((64,4)))
+        target_net = QNet((4,4))
+        target_net.append(ConvolutionLayer((3,3,16,16)))
+        net.append(ActivationLayer('relu'))
+        target_net.append(DenseLayer((256,256)))
+        target_net.append(ActivationLayer('relu'))
+        target_net.append(DenseLayer((256,4)))
+        #target_net.append(ActivationLayer('relu'))
         target_net.setup()
 
     return net, target_net, memory
@@ -144,7 +149,8 @@ def main():
     copy_ops = net.copyTo(target_net, tau)
 
     # get this started...
-    session.run(tf.initialize_all_variables())
+    session.run(tf.global_variables_initializer())
+    #session.run(tf.initialize_all_variables())
     session.run(copy_ops)
     saver = tf.train.Saver()
 

@@ -56,11 +56,15 @@ class Game(gym.Env):
         v = 1 + np.random.choice(2, size=m, p=(0.75, 0.25), replace=True)
         self.board[i_idx[s], j_idx[s]] = v
     def state(self, copy=True):
-        res = self.board.flatten() / 16.0
-        if copy:
-            return res.copy()
-        else:
-            return res
+        return self.board.copy()
+        #res = [(self.board == i).astype(np.float32) for i in range(16)]
+        #return np.dstack(res)
+        #return np.array(res, dtype=np.float32)
+        #res = self.board.flatten() / 16.0
+        #if copy:
+        #    return res.copy()
+        #else:
+        #    return res
 
     def _reset(self):
         self.board.fill(0)

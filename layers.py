@@ -18,6 +18,7 @@ class DenseLayer(Layer):
         self.b = tf.get_variable(Layer.name('b'), initializer = tf.zeros((shape[-1],)))
 
     def apply(self, x):
+        x = tf.contrib.layers.flatten(x)
         return tf.matmul(x, self.W) + self.b
 
 
@@ -39,4 +40,11 @@ class ActivationLayer(Layer):
             #elif self.type == 'linear':
             return x
 
-
+class ConvolutionLayer(Layer):
+    def __init__(self, shape):
+        #(?,4,4,16) --> ... (?,4,4,OUTPUT_CHANNELS)
+        # shape = (patch_i, patch_j, input_chan, output_chan)
+        self.W = tf.get_variable(Layer.name('W'), shape = shape, initializer = tf.contrib.layers.xavier_initializer())
+        self.b = tf.get_variable(Layer.name('b'), initializer = tf.zeros((shape[-1],)))
+    def apply(self, x):
+        return tf.nn.conv2d(x, self.W, strides=[1,1,1,1], padding='SAME') + self.b
